@@ -1,10 +1,8 @@
 package profile
 
 import (
-	//"debug/elf"
+	"debug/elf"
 	"fmt"
-	//"io"
-	//"sort"
 	"strconv"
 	"strings"
 )
@@ -53,6 +51,23 @@ func (r *Resolver) LoadSymbols(symbolsData []byte) error {
 			return err
 		}
 		r.Symbols[addr] = words[1]
+	}
+	return nil
+}
+
+func (r *Resolver) LoadSymbolsFromExeFile(filename string) error {
+	f, err := elf.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	symbols, err := f.Symbols()
+	if err != nil {
+		return err
+	}
+
+	for _, symbol := range symbols {
+		r.Symbols[symbol.Value] = symbol.Name
 	}
 	return nil
 }

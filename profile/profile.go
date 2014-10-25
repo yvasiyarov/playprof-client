@@ -24,6 +24,19 @@ func NewProfile() *Profile {
 	}
 }
 
+func (prof *Profile) LoadProfileFromFiles(exeFile string, profFile string, appId int64) error {
+	if err := prof.Resolver.LoadSymbolsFromExeFile(exeFile); err != nil {
+		return err
+	}
+	if data, err := ioutil.ReadFile(profFile); err != nil {
+		return err
+	} else if err := prof.loadMetricsFromBuffer(data); err != nil {
+		return err
+	} else {
+		return prof.sendProfile(appId)
+	}
+}
+
 func (prof *Profile) ProfileByUrl(sourceUrl string, appId int64) error {
 
 	if err := prof.loadMetricsByUrl(sourceUrl); err != nil {
@@ -59,13 +72,16 @@ func (prof *Profile) loadMetricsByUrl(url string) error {
 	}
 	resp.Body.Close()
 
+	return prof.loadMetricsFromBuffer(data)
+}
+
+func (prof *Profile) loadMetricsFromBuffer(data []byte) error {
 	switch string(data[:4]) {
 	case "heap":
-		err = prof.loadHeapMetrics(data)
+		return prof.loadHeapMetrics(data)
 	default:
-		err = prof.loadCpuMetrics(data)
+		return prof.loadCpuMetrics(data)
 	}
-	return err
 }
 
 func (prof *Profile) loadSymbolsByUrl(url string) ([]byte, error) {
