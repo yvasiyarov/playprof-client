@@ -6,8 +6,8 @@ import (
 
 // A ReporterTransfer is used to transfer reports from client to play-prof server.
 type Metrics struct {
-	FuncStats map[uint64]*StatItem // stats per PC.
-	MemStats  []StatItem           // allocation pool.
+	FuncStats     map[uint64]*StatItem // stats per PC.
+	statsItemPool []StatItem           // StatItem pool, used for more efficient memory allocation
 }
 type StatItem struct {
 	Self    [4]int64
@@ -18,7 +18,6 @@ type StatItem struct {
 func NewMetrics() *Metrics {
 	return &Metrics{
 		FuncStats: make(map[uint64]*StatItem),
-		MemStats:  make([]StatItem, 64),
 	}
 }
 
@@ -79,8 +78,11 @@ func (m *Metrics) getStats(key uint64) *StatItem {
 	if p := m.FuncStats[key]; p != nil {
 		return p
 	}
-	s := &m.MemStats[0]
-	m.MemStats = m.MemStats[1:]
+	if len(m.statsItemPool) == 0 {
+		m.statsItemPool = make([]StatItem, 64)
+	}
+	s := &m.statsItemPool[0]
+	m.statsItemPool = m.statsItemPool[1:]
 	m.FuncStats[key] = s
 	return s
 }
