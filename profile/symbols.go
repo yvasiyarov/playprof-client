@@ -3,6 +3,7 @@ package profile
 import (
 	"debug/elf"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -55,7 +56,7 @@ func (r *Resolver) LoadSymbols(symbolsData []byte) error {
 	return nil
 }
 
-func (r *Resolver) LoadSymbolsFromExeFile(filename string) error {
+func (r *Resolver) LoadSymbolsFromExeFile(addresses []uint64, filename string) error {
 	f, err := elf.Open(filename)
 	if err != nil {
 		return err
@@ -66,8 +67,40 @@ func (r *Resolver) LoadSymbolsFromExeFile(filename string) error {
 		return err
 	}
 
-	for _, symbol := range symbols {
-		r.Symbols[symbol.Value] = symbol.Name
+	sort.Sort(elfSymbolTable(symbols))
+	elfResolver := elfSymbolTable(symbols)
+
+	for _, addr := range addresses {
+		r.Symbols[addr] = elfResolver.Resolve(addr)
 	}
 	return nil
+}
+
+type elfSymbolTable []elf.Symbol
+
+func (s elfSymbolTable) Len() int {
+	return len(s)
+}
+func (s elfSymbolTable) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s elfSymbolTable) Less(i, j int) bool {
+	return s[i].Value < s[j].Value
+}
+
+func (s elfSymbolTable) Resolve(addr uint64) string {
+	min, max := 0, len(s)
+	for max-min > 1 {
+		med := (min + max) / 2
+		a := s[med].Value
+		if a < addr {
+			min = med
+		} else {
+			max = med
+		}
+	}
+	if s[min].Value > addr {
+		return "N/A"
+	}
+	return s[min].Name
 }

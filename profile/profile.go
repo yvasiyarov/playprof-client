@@ -25,16 +25,24 @@ func NewProfile() *Profile {
 }
 
 func (prof *Profile) LoadProfileFromFiles(exeFile string, profFile string, appId int64) error {
-	if err := prof.Resolver.LoadSymbolsFromExeFile(exeFile); err != nil {
-		return err
-	}
 	if data, err := ioutil.ReadFile(profFile); err != nil {
 		return err
 	} else if err := prof.loadMetricsFromBuffer(data); err != nil {
 		return err
-	} else {
-		return prof.sendProfile(appId)
 	}
+
+	symbols := prof.Metrics.Symbols()
+	addresses := make([]uint64, 0, len(symbols))
+
+	for _, addr := range prof.Metrics.Symbols() {
+		addresses = append(addresses, addr)
+	}
+
+	if err := prof.Resolver.LoadSymbolsFromExeFile(addresses, exeFile); err != nil {
+		return err
+	}
+	log.Printf("symbols: %v\n", prof.Resolver)
+	return prof.sendProfile(appId)
 }
 
 func (prof *Profile) ProfileByUrl(sourceUrl string, appId int64) error {
@@ -131,6 +139,7 @@ func (prof *Profile) loadCpuMetrics(data []byte) error {
 		if trace == nil && err == io.EOF {
 			break
 		}
+
 		if err = prof.Metrics.Add(trace, int64(count)); err != nil {
 			return err
 		}
